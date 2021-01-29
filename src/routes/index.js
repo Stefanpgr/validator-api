@@ -1,6 +1,6 @@
 const express = require('express')
 const {ResMsg } = require('../utils')
-const {validate, bodyValidation, isObject} = require('../helpers/validate')
+const {validate, bodyValidation, isObject, checkFields} = require('../helpers/validate')
 const validateController = require('../controller/validateController')
 
 

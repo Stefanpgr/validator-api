@@ -35,7 +35,7 @@ app.use((req, res, next) => {
 app.use((error, req, res, _next) => {
   const { message } = error
   if(error.type === 'entity.parse.failed'){
-    ResMsg(res, 400, 'error', "Invalid JSON payload passed.", null)
+   return ResMsg(res, 400, 'error', "Invalid JSON payload passed.", null)
   }
   ResMsg(res, 500, 'error', message, null)
  

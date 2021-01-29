@@ -1,91 +1,98 @@
-const { log } = require('debug')
-const { check, validationResult } = require('express-validator')
+
+const { gte } = require('../helpers/conditions')
 const { ResMsg, getJsonRes } = require('../utils')
 
-const conditions = ['eq', 'neq', 'gt', 'gte', 'contains']
 
 const validateController = async (req, res, next) => {
   const { rule, data } = req.body
-  const arr = rule.field.split('.')
-    if (!data.hasOwnProperty(arr[0])) return ResMsg(res, 400, 'error', `field ${rule.field} is missing from data.`, null)
 
-//   const fieldVal1 =  data?.[arr[0]]
-//   const fieldVal2 = data?.[arr[0]]?.[arr[1]] 
-//   console.log(fieldVal1)
-// if(fieldVal1 && fieldVal2){
-//     console.log(1)
-//     validateConditions(rule, data, res, fieldVal2)
-// }else if(!fieldVal2 && !fieldVal1){
-//     console.log(2)
-//     console.log(!fieldVal2 && !fieldVal1)
-  
-//     return ResMsg(res, 400, 'error', `field ${rule.field} is missing from data.`, null)
-// }else{
-//    validateConditions(rule, data, res, fieldVal1)
-// }
-//   if (fieldVal) {
-//     validateConditions(rule, data, res, fieldVal)
-//   } else {
-//     return ResMsg(res, 400, 'error', `field ${rule.field} is missing from data.`, null)
-//   }
+  const field = rule.field.toString()
+  const arr = field.split('.')
 
+  if (Array.isArray(data) !== true && typeof data !== 'string') {
+    if (!data.hasOwnProperty(arr[0]))
+      return ResMsg(res, 400, 'error', `field ${rule.field} is missing from data.`, null)
     if (arr.length > 1) {
       const val = await checkIfFieldExist(arr, data, res)
-      if (val)
-      validateConditions(rule, data, res)
+      if (val) validateConditions(rule, data, res, field)
     } else {
-
-      validateConditions(rule, data, res)
+      validateConditions(rule, data, res, field)
     }
+  } else {
+    validateConditions(rule, data, res, field)
+  }
+
 }
 
-const validateConditions = (rule, data, res) => {
-  const { field, condition, condition_value } = rule
+const validateConditions = (rule, data, res, field) => {
+  const { condition_value } = rule
   const arr = field.split('.')
-    const fieldVal = data?.[arr[0]]?.[arr[1]] || data?.[arr[0]]
-// console.log(fieldVal, "jj")
+  const isArray = Array.isArray(data)
+
+  let fieldVal = data?.[arr[0]]?.[arr[1]] || data?.[arr[0]] || data
+  Array.isArray(data) ? (fieldVal = data) : null
+
   switch (rule.condition) {
     case 'gte':
-      if (fieldVal >= condition_value) {
-        resSuccess(res, field, getJsonRes(false, field, fieldVal, rule.condition, condition_value))
-      } else {
-        resFail(res, field, getJsonRes(true, field, fieldVal, rule.condition, condition_value))
-      }
+        return gte(fieldVal, rule, field, res, isArray, data)
+    //   if (fieldVal >= condition_value) {
+    //     resSuccess(res, field, getJsonRes(false, field, fieldVal[field] || fieldVal, rule.condition, condition_value))
+    //   } else if (isArray && data[Number(field)] >= condition_value) {
+    //     console.log(fieldVal)
+    //     resSuccess(res, field, getJsonRes(false, field, fieldVal[field] , rule.condition, condition_value))
+    //   } else if ((isArray && !data[Number(field)]) || data.length < field) {
+    //     ResMsg(res, 400, 'error', `field ${field} is missing from data`, null)
+    //   } else {
+    //     resFail(res, field, getJsonRes(true, field, fieldVal[field], rule.condition, condition_value))
+    //   }
       break
     case 'neq':
       if (fieldVal !== condition_value) {
         resSuccess(res, field, getJsonRes(false, field, fieldVal, rule.condition, condition_value))
+      } else if (isArray && data[Number(field)] !== condition_value) {
+        resSuccess(res, field, getJsonRes(false, field, fieldVal[Number(field)], rule.condition, condition_value))
+      } else if ((isArray && !data[Number(field)]) || data.length < field) {
+        ResMsg(res, 400, 'error', `field ${field} is missing from data`, null)
       } else {
-        resFail(res, field, getJsonRes(true, field, fieldVal, rule.condition, condition_value))
+        resFail(res, field, getJsonRes(true, field, fieldVal[field] || fieldVal, rule.condition, condition_value))
       }
       break
     case 'eq':
       if (fieldVal === condition_value) {
         resSuccess(res, field, getJsonRes(false, field, fieldVal, rule.condition, condition_value))
+      } else if (isArray && data[Number(field)] === condition_value) {
+        resSuccess(res, field, getJsonRes(false, field, fieldVal[Number(field)], rule.condition, condition_value))
+      } else if ((isArray && !data[Number(field)]) || data.length < field) {
+        ResMsg(res, 400, 'error', `field ${field} is missing from data`, null)
       } else {
-        resFail(res, field, getJsonRes(true, field, fieldVal, rule.condition, condition_value))
+        resFail(res, field, getJsonRes(true, field, fieldVal[field] || fieldVal, rule.condition, condition_value))
       }
       break
     case 'gt':
       if (fieldVal > condition_value) {
         resSuccess(res, field, getJsonRes(false, field, fieldVal, rule.condition, condition_value))
+      } else if (isArray && data[Number(field)] > condition_value) {
+        resSuccess(res, field, getJsonRes(false, field, fieldVal[field], rule.condition, condition_value))
+      } else if ((isArray && !data[Number(field)].toString()) || data.length < field) {
+        console.log(data[Number(field)])
+        ResMsg(res, 400, 'error', `field ${field} is missing from data`, null)
       } else {
-        resFail(res, field, getJsonRes(true, field, fieldVal, rule.condition, condition_value))
+        console.log(fieldVal[1])
+        resFail(res, field, getJsonRes(true, field, fieldVal[1] || fieldVal, rule.condition, condition_value))
       }
       break
     case 'contains':
+      console.log(typeof fieldVal, fieldVal)
+      if (isArray && data.length < Number(field)) {
+        ResMsg(res, 400, 'error', `field ${rule.field} is missing from data.`, null)
+      } else if (typeof fieldVal !== 'string' && !Array.isArray(fieldVal)) {
+        resFail(res, field, getJsonRes(true, field, fieldVal[field] || fieldVal, rule.condition, condition_value))
+      } else if (fieldVal.includes(condition_value)) {
         console.log(typeof fieldVal, fieldVal)
-      if (typeof data !== 'object') {
+        resSuccess(res, field, getJsonRes(false, field, fieldVal[field], rule.condition, condition_value))
+      } else {
 
-          ResMsg(res, 400, 'error', `field ${rule.field} is missing from data.`, null)
-      } else if(typeof fieldVal !== 'string' && !Array.isArray(fieldVal) ){
-        resFail(res, field, getJsonRes(true, field, fieldVal, rule.condition, condition_value))
-      } else if(fieldVal.includes(condition_value)) {
-          console.log(typeof fieldVal, fieldVal)
-        resSuccess(res, field, getJsonRes(false, field, fieldVal, rule.condition, condition_value))
-        
-      }else{
-        resFail(res, field, getJsonRes(true, field, fieldVal, rule.condition, condition_value))
+        resFail(res, field, getJsonRes(true, field, fieldVal[field] || fieldVal, rule.condition, condition_value))
       }
       break
     default:
@@ -102,12 +109,11 @@ const resFail = (res, field, payload) => {
 
 const checkIfFieldExist = async (arr, data, res) => {
   try {
-      console.log(Object.keys(data[arr[0]]).includes(arr[1]))
-      if (!Object.keys(data[arr[0]]).includes(arr[1])) {
-        throw `field ${arr[1]} is missing from data.`
-      }
-      return true
-
+    console.log(Object.keys(data[arr[0]]).includes(arr[1]))
+    if (!Object.keys(data[arr[0]]).includes(arr[1])) {
+      throw `field ${arr.join('.')} is missing from data.`
+    }
+    return true
   } catch (err) {
     return ResMsg(res, 400, 'error', `${err}`, null)
   }
