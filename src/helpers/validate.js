@@ -1,4 +1,4 @@
-const { body, validationResult, check } = require('express-validator')
+const { body, validationResult } = require('express-validator')
 const { ResMsg } = require('../utils')
 const conditions = ['eq', 'neq', 'gt', 'gte', 'contains']
 exports.bodyValidation = () => [
